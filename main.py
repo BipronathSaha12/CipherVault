@@ -1,10 +1,13 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+# pyrefly: ignore [missing-import]
 from tkinterdnd2 import DND_FILES, TkinterDnD
+import traceback
 
 from utils.crypto_utils import encrypt_data, decrypt_data
 from utils.file_handler import read_file, write_file
 from utils.folder_handler import encrypt_folder, decrypt_folder
+from utils.logger import logger
 
 
 def update_progress(value):
@@ -18,19 +21,29 @@ def encrypt_file(path):
         messagebox.showerror("Error", "Enter password!")
         return
 
+    logger.info(f"Encrypting file: {path}")
     data = read_file(path)
     if data is None:           # if file read fails, stop process
+        logger.error(f"Failed to read file: {path}")
+        messagebox.showerror("Error", f"Failed to read file: {path}")
         return
 
-    update_progress(30)
-    encrypted = encrypt_data(data, password)   # encrypt data
-    update_progress(70)
+    try:
+        update_progress(30)
+        encrypted = encrypt_data(data, password)   # encrypt data
+        update_progress(70)
 
-    write_file(path + ".enc", encrypted)
-    update_progress(100)
+        write_file(path + ".enc", encrypted)
+        update_progress(100)
 
-    messagebox.showinfo("Success", "File Encrypted!")
-
+        logger.info(f"File encrypted successfully: {path}")
+        messagebox.showinfo("Success", "File Encrypted!")
+    except Exception as e:
+        logger.exception("Encryption failed")
+        messagebox.showerror("Error", f"Encryption failed: {str(e)}")
+    finally:
+        password_entry.delete(0, tk.END)
+        update_progress(0)
 
 def decrypt_file(path):
     password = password_entry.get()
@@ -38,10 +51,13 @@ def decrypt_file(path):
         messagebox.showerror("Error", "Enter password!")
         return
 
+    logger.info(f"Decrypting file: {path}")
     data = read_file(path)
     if data is None:
+        logger.error(f"Failed to read file: {path}")
+        messagebox.showerror("Error", f"Failed to read file: {path}")
         return
-    # decryption can fail if password is wrong, so we wrap in try-except to show error message instead of crashing
+
     try:
         update_progress(30)
         decrypted = decrypt_data(data, password)
@@ -50,9 +66,14 @@ def decrypt_file(path):
         write_file(path.replace(".enc", "_dec.txt"), decrypted)
         update_progress(100)
 
+        logger.info(f"File decrypted successfully: {path}")
         messagebox.showinfo("Success", "File Decrypted!")
-    except:
-        messagebox.showerror("Error", "Wrong password!")
+    except Exception as e:
+        logger.exception("Decryption failed")
+        messagebox.showerror("Error", "Wrong password or corrupted file!")
+    finally:
+        password_entry.delete(0, tk.END)
+        update_progress(0)
 
 # folder encryption and decryption functions
 def select_file_encrypt():
@@ -70,15 +91,33 @@ def select_file_decrypt():
 def select_folder_encrypt():
     path = filedialog.askdirectory()
     if path:
-        encrypt_folder(path, password_entry.get())    # encrypt folder with password from entry
+        password = password_entry.get()
+        if not password:
+            messagebox.showerror("Error", "Enter password!")
+            return
+        
+        logger.info(f"Encrypting folder: {path}")
+        encrypt_folder(path, password)
+        logger.info("Folder encrypted successfully")
         messagebox.showinfo("Done", "Folder Encrypted!")
+        password_entry.delete(0, tk.END)
 
 # select_folder_decrypt function
 def select_folder_decrypt():
     path = filedialog.askdirectory()
     if path:
-        decrypt_folder(path, password_entry.get())  # decrypt folder with password from entry
-        messagebox.showinfo("Done", "Folder Decrypted!")
+        password = password_entry.get()
+        if not password:
+            messagebox.showerror("Error", "Enter password!")
+            return
+            
+        logger.info(f"Decrypting folder: {path}")
+        success = decrypt_folder(path, password)
+        if success:
+            messagebox.showinfo("Done", "Folder Decrypted successfully!")
+        else:
+            messagebox.showwarning("Warning", "Folder Decrypted with some errors. Check log.")
+        password_entry.delete(0, tk.END)
 
 # drag and drop function
 def drop(event):
@@ -91,10 +130,10 @@ def drop(event):
 
 # GUI setup
 root = TkinterDnD.Tk()
-root.title("File Encryptor PRO")
+root.title("CipherVault")
 root.geometry("450x350")
 
-tk.Label(root, text="🔐 File Encryptor PRO", font=("Arial", 16)).pack(pady=10)
+tk.Label(root, text="🔐 CipherVault", font=("Arial", 16)).pack(pady=10)
 
 tk.Label(root, text="Password:").pack()
 password_entry = tk.Entry(root, show="*", width=30)
