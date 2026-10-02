@@ -76,11 +76,6 @@ pyinstaller --onefile --windowed main.py
 
 ---
 
-## 📷 Screenshots
-
-![GUI Screenshot](screenshots/gui_screenshot.png)
-
----
 
 ## 💼 Use in Resume / Interview
 
@@ -90,4 +85,4 @@ pyinstaller --onefile --windowed main.py
 
 ## ⚖ License
 
-This project is open-source under the MIT License.
+This project is open-source.
